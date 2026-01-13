@@ -1,5 +1,4 @@
-// 301 Lines by Claude Sonnet
-// Minimal TCA: Complete counter example demonstrating the architecture
+// Tiny TCA: Complete counter example demonstrating the architecture
 // Extended with parent/child composition using Scope
 // Extended with forEach example for managing collections
 

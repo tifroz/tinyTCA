@@ -1,12 +1,13 @@
-# MinimalTCA
+# tinyTCA
 
 A minimal, Android-compatible implementation of The Composable Architecture pattern.
 
 ## Overview
 
-MinimalTCA provides the core TCA concepts (composability + testability) using only Swift Concurrency, making it compatible with any platform that supports Swift 6.1+, including Android.
+tinyTCA provides the core TCA concepts (composability + testability) using only Swift Concurrency, making it compatible with any platform that supports Swift 6.1+, including Android.
 
 **Key differences from Point-Free's TCA:**
+
 - ❌ No Combine dependency (uses AsyncStream and async/await)
 - ❌ No ViewStore (use `@Observable` directly in SwiftUI)
 - ❌ No macros (simpler, but more verbose)

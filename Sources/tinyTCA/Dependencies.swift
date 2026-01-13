@@ -1,5 +1,4 @@
-// 69 Lines by Claude Sonnet
-// Minimal TCA: Simple dependency injection system (Android-compatible, no Combine)
+// Tiny TCA: Simple dependency injection system (Android-compatible, no Combine)
 
 import Foundation
 

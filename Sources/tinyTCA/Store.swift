@@ -1,5 +1,4 @@
-// 86 Lines by Claude Sonnet
-// Minimal TCA: Main Store implementation with state management (Android-compatible, no Combine)
+// Tiny TCA: Main Store implementation with state management (Android-compatible, no Combine)
 
 import Foundation
 

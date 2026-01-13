@@ -3,10 +3,10 @@
     "allow": [
       "Bash(git describe:*)",
       "Bash(git show-ref:*)",
-      "mcp__ide__getDiagnostics",
       "Bash(swift build:*)",
       "Bash(skip android build)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebFetch(domain:skip.tools)"
     ],
     "deny": [],
     "ask": []

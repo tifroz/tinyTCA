@@ -1,5 +1,4 @@
-// 67 Lines by Claude Sonnet
-// Minimal TCA: Simple CasePath for enum case extraction (Android-compatible, no dependencies)
+// Tiny TCA: Simple CasePath for enum case extraction (Android-compatible, no dependencies)
 
 import Foundation
 

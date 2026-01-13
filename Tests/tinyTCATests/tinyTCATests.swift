@@ -1,10 +1,9 @@
-// 362 Lines by Claude Sonnet
-// Minimal TCA: Comprehensive tests demonstrating testability
+// Tiny TCA: Comprehensive tests demonstrating testability
 // Extended with Scope composition tests
 // Extended with ForEach collection tests
 
 import Testing
-@testable import MinimalTCA
+@testable import tinyTCA
 
 @MainActor
 @Suite("Counter Tests")

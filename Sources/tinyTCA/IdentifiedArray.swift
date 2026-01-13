@@ -1,5 +1,4 @@
-// 183 Lines by Claude Sonnet
-// Minimal TCA: Simple IdentifiedArray for managing collections with stable IDs
+// Tiny TCA: Simple IdentifiedArray for managing collections with stable IDs
 
 import Foundation
 

@@ -1,5 +1,4 @@
-// 109 Lines by Claude Sonnet
-// Minimal TCA: TestStore for deterministic testing (Android-compatible, no Combine)
+// Tiny TCA: TestStore for deterministic testing (Android-compatible, no Combine)
 
 import Foundation
 

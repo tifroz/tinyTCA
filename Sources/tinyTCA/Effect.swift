@@ -1,5 +1,4 @@
-// 119 Lines by Claude Sonnet
-// Minimal TCA: AsyncStream-based Effect system (Android-compatible, no Combine)
+// Tiny TCA: AsyncStream-based Effect system (Android-compatible, no Combine)
 
 import Foundation
 

@@ -1,5 +1,4 @@
-// 49 Lines by Claude Sonnet
-// Minimal TCA: Action wrapper for collection element actions tagged with IDs
+// Tiny TCA: Action wrapper for collection element actions tagged with IDs
 
 import Foundation
 

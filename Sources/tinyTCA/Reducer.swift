@@ -1,5 +1,4 @@
-// 323 Lines by Claude Sonnet
-// Minimal TCA: Core Reducer protocol with composition support (Android-compatible, no Combine)
+// Tiny TCA: Core Reducer protocol with composition support (Android-compatible, no Combine)
 // Extended with Scope operator for parent/child composition
 // Extended with ForEach operator for collection-based composition
 
