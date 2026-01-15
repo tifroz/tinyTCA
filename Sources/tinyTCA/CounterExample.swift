@@ -373,3 +373,160 @@ func collectionsExample() async {
   print("Counters: \(store.currentState.counters.count)") // 2
   print("Total: \(store.currentState.totalCount)") // 0
 }
+
+// MARK: - ============================================
+// MARK: - MACRO-BASED EXAMPLES
+// MARK: - ============================================
+//
+// The examples below demonstrate the same functionality using the @Reducer macro,
+// which significantly reduces boilerplate by:
+// 1. Auto-applying @CasePathable to Action enums
+// 2. Generating Reducer protocol conformance
+// 3. Supporting declarative body-based composition
+//
+// Note: The @CasePathable macro generates an AllCasePaths struct that provides
+// CaseKeyPath properties for each enum case.
+
+// MARK: - @CasePathable Example
+
+/// Example: Using @CasePathable to generate case key paths
+///
+/// The macro generates:
+/// - `AllCasePaths` struct with CaseKeyPath for each case
+/// - `allCasePaths` static property
+/// - CasePathable protocol conformance
+@CasePathable
+enum SampleAction: Equatable, Sendable {
+    case increment
+    case decrement
+    case child(CounterReducer.Action)
+}
+
+// After macro expansion, you can access case paths via:
+// - SampleAction.allCasePaths.child  -> CaseKeyPath<SampleAction, CounterReducer.Action>
+// - SampleAction.allCasePaths.increment -> CaseKeyPath<SampleAction, Void>
+
+// MARK: - Macro-Based Parent/Child Composition
+
+/// Example: Parent feature using @Reducer macro
+///
+/// This demonstrates the simplified syntax enabled by macros.
+/// Compare with `AppReducer` and `AppReducerV2` above to see the reduction in boilerplate.
+@Reducer
+struct MacroAppReducer {
+    struct State: Equatable, Sendable {
+        var counter: CounterReducer.State
+        var appTitle: String
+    }
+
+    // @CasePathable is automatically applied by @Reducer macro
+    enum Action: Equatable, Sendable {
+        case counter(CounterReducer.Action)
+        case updateTitle(String)
+    }
+
+    // Declarative body-based composition using ergonomic CaseKeyPath syntax
+    // The @Reducer macro generates the reduce(into:action:) method that delegates to body
+    var body: some Reducer<State, Action> {
+        CombinedReducer(
+            // Child reducer - compare to the verbose CasePath version above!
+            Scope<State, Action, CounterReducer>(
+                state: \State.counter,
+                action: Action.allCasePaths.counter
+            ) {
+                CounterReducer()
+            },
+            // Parent logic using Reduce
+            Reduce<State, Action> { state, action in
+                switch action {
+                case .counter(.increment):
+                    state.appTitle = "Counter incremented!"
+                    return .none
+                case .counter:
+                    return .none
+                case let .updateTitle(title):
+                    state.appTitle = title
+                    return .none
+                }
+            }
+        )
+    }
+}
+
+// MARK: - Macro-Based Collection Example
+
+/// Example: Collection management with @Reducer macro
+///
+/// This demonstrates forEach with the macro-generated reducer.
+/// Compare with `CountersApp` and `CountersAppV2` above.
+@Reducer
+struct MacroCountersApp {
+    struct State: Equatable, Sendable {
+        var counters: IdentifiedArrayOf<CounterReducer.State>
+
+        init(counters: IdentifiedArrayOf<CounterReducer.State> = IdentifiedArrayOf<CounterReducer.State>()) {
+            self.counters = counters
+        }
+    }
+
+    enum Action: Equatable, Sendable {
+        case addCounter
+        case removeCounter(id: UUID)
+        case counters(IdentifiedActionOf<CounterReducer>)
+    }
+
+    var body: some Reducer<State, Action> {
+        // Use ergonomic CaseKeyPath syntax with forEach
+        // Compare to the verbose CasePath version in CountersApp above!
+        Reduce<State, Action> { state, action in
+            switch action {
+            case .addCounter:
+                state.counters.append(CounterReducer.State())
+                return .none
+            case let .removeCounter(id):
+                state.counters.remove(id: id)
+                return .none
+            case .counters:
+                return .none
+            }
+        }
+        .forEach(
+            \State.counters,
+            identifiedAction: Action.allCasePaths.counters
+        ) { () -> CounterReducer in
+            CounterReducer()
+        }
+    }
+}
+
+// MARK: - Usage Example (Macro-Based)
+
+@MainActor
+func macroExample() async {
+    // Parent/child composition with macro
+    let appStore = Store(
+        initialState: MacroAppReducer.State(
+            counter: CounterReducer.State(),
+            appTitle: "My App"
+        ),
+        reducer: MacroAppReducer()
+    )
+
+    // Send child actions through parent
+    await appStore.send(.counter(.increment))
+    print("Count: \(appStore.currentState.counter.count)") // 1
+    print("Title: \(appStore.currentState.appTitle)") // "Counter incremented!"
+
+    // Collection management with macro
+    let countersStore = Store(
+        initialState: MacroCountersApp.State(),
+        reducer: MacroCountersApp()
+    )
+
+    await countersStore.send(.addCounter)
+    await countersStore.send(.addCounter)
+
+    guard let firstID = countersStore.currentState.counters.first?.id else { return }
+    await countersStore.send(.counters(.element(id: firstID, action: .increment)))
+    print("First counter: \(countersStore.currentState.counters[id: firstID]?.count ?? 0)") // 1
+}

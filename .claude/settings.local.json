@@ -6,7 +6,10 @@
       "Bash(swift build:*)",
       "Bash(skip android build)",
       "Bash(git add:*)",
-      "WebFetch(domain:skip.tools)"
+      "WebFetch(domain:skip.tools)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(swift test:*)"
     ],
     "deny": [],
     "ask": []

@@ -10,7 +10,7 @@ tinyTCA provides the core TCA concepts (composability + testability) using only 
 
 - ❌ No Combine dependency (uses AsyncStream and async/await)
 - ❌ No ViewStore (use `@Observable` directly in SwiftUI)
-- ❌ No macros (simpler, but more verbose)
+- ✅ **Macro support** (`@Reducer`, `@CasePathable`)
 - ✅ Full Android compatibility
 - ✅ Same mental model and patterns
 - ✅ Testable and composable reducers
@@ -18,7 +18,7 @@ tinyTCA provides the core TCA concepts (composability + testability) using only 
 ## Requirements
 
 - Swift 6.1+
-- Platforms: iOS 16+, macOS 13+, Android (via Swift SDK)
+- Platforms: iOS 17+, macOS 14+, Android (via Swift SDK)
 
 ## Core Components
 
@@ -104,9 +104,78 @@ extension DependencyValues {
 }
 ```
 
+## Macro Support
+
+tinyTCA includes macros to reduce boilerplate when composing reducers.
+
+### @CasePathable
+
+Generates case key paths for enum cases, enabling ergonomic action routing:
+
+```swift
+@CasePathable
+enum Action {
+    case increment
+    case child(ChildAction)
+}
+
+// Generated: Action.allCasePaths.child -> CaseKeyPath<Action, ChildAction>
+```
+
+### @Reducer
+
+Simplifies reducer definitions by:
+- Auto-applying `@CasePathable` to the `Action` enum
+- Generating `Reducer` protocol conformance
+- Supporting body-based composition with ergonomic `Action.allCasePaths` syntax
+
+```swift
+@Reducer
+struct ParentFeature {
+    struct State: Equatable {
+        var counter: CounterReducer.State
+        var title: String
+    }
+
+    enum Action {
+        case counter(CounterReducer.Action)
+        case updateTitle(String)
+    }
+
+    var body: some Reducer<State, Action> {
+        CombinedReducer(
+            // Ergonomic syntax using Action.allCasePaths
+            Scope<State, Action, CounterReducer>(
+                state: \State.counter,
+                action: Action.allCasePaths.counter
+            ) {
+                CounterReducer()
+            },
+            Reduce<State, Action> { state, action in
+                switch action {
+                case .counter(.increment):
+                    state.title = "Counter incremented!"
+                    return .none
+                case .counter:
+                    return .none
+                case let .updateTitle(title):
+                    state.title = title
+                    return .none
+                }
+            }
+        )
+    }
+}
+```
+
+The `Action.allCasePaths.counter` syntax replaces verbose `CasePath(extract:embed:)` construction, reducing boilerplate significantly.
+
 ## Usage Example
 
-See `CounterExample.swift` for a complete working example.
+See `CounterExample.swift` for complete working examples, including:
+- Basic counter reducer
+- Parent/child composition (manual and macro-based)
+- Collection management with `ForEach`
 
 ## Testing
 
@@ -114,7 +183,7 @@ See `CounterExample.swift` for a complete working example.
 swift test
 ```
 
-All 9 tests pass ✓
+All 28 tests pass ✓
 
 ## Building for Android
 
@@ -129,7 +198,6 @@ This is a **minimal** implementation focused on core patterns. It does not inclu
 - ViewStore (use SwiftUI's `@Observable` instead)
 - Navigation helpers
 - Debounce/throttle operators
-- Macro support
 - Comprehensive effect testing infrastructure
 
 For a full-featured library, use Point-Free's TCA on Apple platforms.

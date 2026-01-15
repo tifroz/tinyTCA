@@ -46,11 +46,27 @@ extension Reducer {
 
 // MARK: - Internal Reducer Combinators
 
-public struct CombinedReducer<R1: Reducer, R2: Reducer>: Reducer
-where R1.State == R2.State, R1.Action == R2.Action {
+public struct CombinedReducer<R1: Reducer, R2: Reducer>: Reducer, Sendable
+where R1.State == R2.State, R1.Action == R2.Action, R1: Sendable, R2: Sendable {
+  @usableFromInline
   let first: R1
+  @usableFromInline
   let second: R2
 
+  // Internal initializer for .combined(with:)
+  init(first: R1, second: R2) {
+    self.first = first
+    self.second = second
+  }
+
+  // Public initializer for ReducerBuilder
+  @inlinable
+  public init(_ first: R1, _ second: R2) {
+    self.first = first
+    self.second = second
+  }
+
+  @inlinable
   public func reduce(into state: inout R1.State, action: R1.Action) -> Effect<R1.Action> {
     let effect1 = first.reduce(into: &state, action: action)
     let effect2 = second.reduce(into: &state, action: action)
@@ -99,8 +115,8 @@ public struct OptionalReducer<Base: Reducer>: Reducer {
 ///   }
 /// }
 /// ```
-public struct Scope<ParentState, ParentAction: Sendable, Child: Reducer>: Reducer
-where Child.State: Sendable, Child.Action: Sendable, Child: Sendable {
+public struct Scope<ParentState, ParentAction: Sendable, Child: Reducer>: Reducer, @unchecked Sendable
+where Child.State: Sendable, Child.Action: Sendable, Child: Sendable, ParentState: Sendable {
   @usableFromInline
   let toChildState: WritableKeyPath<ParentState, Child.State>
   @usableFromInline
@@ -233,8 +249,8 @@ extension Reducer {
 ///   }
 /// }
 /// ```
-public struct ForEach<ParentState, ParentAction: Sendable, ID: Hashable & Sendable, Element: Reducer>: Reducer
-where Element.State: Sendable, Element.Action: Sendable, Element: Sendable {
+public struct ForEach<ParentState, ParentAction: Sendable, ID: Hashable & Sendable, Element: Reducer>: Reducer, @unchecked Sendable
+where Element.State: Sendable, Element.Action: Sendable, Element: Sendable, ParentState: Sendable {
   @usableFromInline
   let toElementsState: WritableKeyPath<ParentState, IdentifiedArray<ID, Element.State>>
   @usableFromInline
@@ -343,6 +359,202 @@ extension Reducer {
   where Element.State == ElementState, Element.Action == ElementAction, Action: Sendable {
     self.combined(
       with: ForEach(state: toElementsState, action: toElementAction, element: element)
+    )
+  }
+}
+
+// MARK: - CaseKeyPath Support for Scope
+
+extension Scope {
+  /// Creates a scope reducer using case key path syntax
+  ///
+  /// This initializer enables the ergonomic syntax:
+  /// ```swift
+  /// Scope(state: \.child, action: \.child) {
+  ///     ChildReducer()
+  /// }
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - toChildState: A writable key path from parent state to child state
+  ///   - toChildAction: A case key path from parent action to child action
+  ///   - child: A closure returning the child reducer
+  public init<ChildAction>(
+    state toChildState: WritableKeyPath<ParentState, Child.State>,
+    action toChildAction: CaseKeyPath<ParentAction, ChildAction>,
+    @ReducerBuilder<Child.State, ChildAction> child: () -> Child
+  ) where Child.Action == ChildAction, ParentAction: CasePathable {
+    self.init(
+      state: toChildState,
+      action: toChildAction.casePath,
+      child: child()
+    )
+  }
+
+  /// Creates a scope reducer using case key path from AllCasePaths
+  ///
+  /// - Parameters:
+  ///   - toChildState: A writable key path from parent state to child state
+  ///   - toChildAction: A key path into AllCasePaths that returns the case key path
+  ///   - child: A closure returning the child reducer
+  public init(
+    state toChildState: WritableKeyPath<ParentState, Child.State>,
+    action toChildAction: KeyPath<ParentAction.AllCasePaths, CaseKeyPath<ParentAction, Child.Action>>,
+    @ReducerBuilder<Child.State, Child.Action> child: () -> Child
+  ) where ParentAction: CasePathable {
+    let caseKeyPath = ParentAction.allCasePaths[keyPath: toChildAction]
+    self.init(
+      state: toChildState,
+      action: caseKeyPath.casePath,
+      child: child()
+    )
+  }
+}
+
+// MARK: - CaseKeyPath Support for ForEach
+
+extension ForEach {
+  /// Creates a forEach reducer using case key path syntax
+  ///
+  /// - Parameters:
+  ///   - toElementsState: Key path to the identified array of element states
+  ///   - toElementAction: Case key path that extracts (id, action) tuples
+  ///   - element: A closure returning the child reducer
+  public init(
+    state toElementsState: WritableKeyPath<ParentState, IdentifiedArray<ID, Element.State>>,
+    action toElementAction: CaseKeyPath<ParentAction, (id: ID, action: Element.Action)>,
+    @ReducerBuilder<Element.State, Element.Action> element: () -> Element
+  ) where ParentAction: CasePathable {
+    self.init(
+      state: toElementsState,
+      action: toElementAction.casePath,
+      element: element()
+    )
+  }
+
+  /// Creates a forEach reducer using case key path from AllCasePaths
+  ///
+  /// - Parameters:
+  ///   - toElementsState: Key path to the identified array of element states
+  ///   - toElementAction: A key path into AllCasePaths that returns the case key path
+  ///   - element: A closure returning the child reducer
+  public init(
+    state toElementsState: WritableKeyPath<ParentState, IdentifiedArray<ID, Element.State>>,
+    action toElementAction: KeyPath<ParentAction.AllCasePaths, CaseKeyPath<ParentAction, (id: ID, action: Element.Action)>>,
+    @ReducerBuilder<Element.State, Element.Action> element: () -> Element
+  ) where ParentAction: CasePathable {
+    let caseKeyPath = ParentAction.allCasePaths[keyPath: toElementAction]
+    self.init(
+      state: toElementsState,
+      action: caseKeyPath.casePath,
+      element: element()
+    )
+  }
+}
+
+// MARK: - IdentifiedActionOf Support for ForEach
+
+extension ForEach where ParentAction: CasePathable {
+  /// Creates a forEach reducer using IdentifiedActionOf ergonomic syntax
+  ///
+  /// This initializer bridges the type gap between `CaseKeyPath<Action, IdentifiedActionOf<Element>>`
+  /// (what @CasePathable generates) and the tuple type ForEach expects internally.
+  ///
+  /// Example:
+  /// ```swift
+  /// ForEach(state: \.counters, action: Action.allCasePaths.counters) {
+  ///     CounterReducer()
+  /// }
+  /// ```
+  public init(
+    state toElementsState: WritableKeyPath<ParentState, IdentifiedArray<ID, Element.State>>,
+    action toIdentifiedAction: CaseKeyPath<ParentAction, IdentifiedActionOf<Element>>,
+    @ReducerBuilder<Element.State, Element.Action> element: () -> Element
+  ) where Element.State: Identifiable, ID == Element.State.ID {
+    // Chain the CaseKeyPath through IdentifiedAction.elementCasePath
+    let combinedCasePath = CasePath<ParentAction, (id: ID, action: Element.Action)>(
+      extract: { parentAction in
+        guard let identifiedAction = toIdentifiedAction.extract(parentAction) else { return nil }
+        return IdentifiedAction<ID, Element.Action>.elementCasePath.extract(from: identifiedAction)
+      },
+      embed: { tuple in
+        toIdentifiedAction.embed(.element(id: tuple.id, action: tuple.action))
+      }
+    )
+    self.init(state: toElementsState, action: combinedCasePath, element: element())
+  }
+}
+
+// MARK: - CaseKeyPath Convenience Extensions
+
+extension Reducer {
+  /// Embeds a child reducer using case key path syntax
+  ///
+  /// Example:
+  /// ```swift
+  /// Reduce { state, action in ... }
+  ///     .scope(state: \.child, action: \.child) {
+  ///         ChildReducer()
+  ///     }
+  /// ```
+  public func scope<ChildState: Sendable, ChildAction: Sendable, Child: Reducer>(
+    state toChildState: WritableKeyPath<State, ChildState>,
+    action toChildAction: CaseKeyPath<Action, ChildAction>,
+    @ReducerBuilder<ChildState, ChildAction> child: () -> Child
+  ) -> CombinedReducer<Self, Scope<State, Action, Child>>
+  where Child.State == ChildState, Child.Action == ChildAction, Action: Sendable {
+    self.combined(
+      with: Scope(state: toChildState, action: toChildAction.casePath, child: child())
+    )
+  }
+
+  /// Embeds a forEach reducer using case key path syntax
+  ///
+  /// Example:
+  /// ```swift
+  /// Reduce { state, action in ... }
+  ///     .forEach(\.items, action: \.items) {
+  ///         ItemReducer()
+  ///     }
+  /// ```
+  public func forEach<ID: Hashable & Sendable, ElementState: Sendable, ElementAction: Sendable, Element: Reducer>(
+    _ toElementsState: WritableKeyPath<State, IdentifiedArray<ID, ElementState>>,
+    action toElementAction: CaseKeyPath<Action, (id: ID, action: ElementAction)>,
+    @ReducerBuilder<ElementState, ElementAction> element: () -> Element
+  ) -> CombinedReducer<Self, ForEach<State, Action, ID, Element>>
+  where Element.State == ElementState, Element.Action == ElementAction, Action: Sendable {
+    self.combined(
+      with: ForEach(state: toElementsState, action: toElementAction.casePath, element: element())
+    )
+  }
+
+  /// Embeds a forEach reducer using IdentifiedActionOf ergonomic syntax
+  ///
+  /// Example:
+  /// ```swift
+  /// Reduce { state, action in ... }
+  ///     .forEach(\.counters, identifiedAction: Action.allCasePaths.counters) {
+  ///         CounterReducer()
+  ///     }
+  /// ```
+  public func forEach<Element: Reducer>(
+    _ toElementsState: WritableKeyPath<State, IdentifiedArrayOf<Element.State>>,
+    identifiedAction toIdentifiedAction: CaseKeyPath<Action, IdentifiedActionOf<Element>>,
+    @ReducerBuilder<Element.State, Element.Action> element: () -> Element
+  ) -> CombinedReducer<Self, ForEach<State, Action, Element.State.ID, Element>>
+  where Element.State: Identifiable, Action: Sendable {
+    // Build combined CasePath that chains through IdentifiedAction.elementCasePath
+    let combinedCasePath = CasePath<Action, (id: Element.State.ID, action: Element.Action)>(
+      extract: { action in
+        guard let identifiedAction = toIdentifiedAction.extract(action) else { return nil }
+        return IdentifiedAction<Element.State.ID, Element.Action>.elementCasePath.extract(from: identifiedAction)
+      },
+      embed: { tuple in
+        toIdentifiedAction.embed(.element(id: tuple.id, action: tuple.action))
+      }
+    )
+    return self.combined(
+      with: ForEach(state: toElementsState, action: combinedCasePath, element: element())
     )
   }
 }
