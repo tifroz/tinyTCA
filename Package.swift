@@ -17,10 +17,9 @@ let package = Package(
         // Swift syntax for macro implementation
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
 
-        // Skip dependencies (commented out for native-only baseline)
-        //.package(url: "https://source.skip.tools/skip.git", from: "1.6.17"),
-        //.package(url: "https://source.skip.tools/skip-model.git", from: "1.0.0"),
-        //.package(url: "https://source.skip.tools/skip-fuse.git", from: "1.0.0"),
+        // Skip dependencies for cross-platform Observable support
+        .package(url: "https://source.skip.tools/skip.git", from: "1.6.17"),
+        .package(url: "https://source.skip.tools/skip-model.git", from: "1.0.0"),
     ],
     targets: [
         // Main library target
@@ -28,11 +27,10 @@ let package = Package(
             name: "tinyTCA",
             dependencies: [
                 "tinyTCAMacros",
-                //.product(name: "SkipFuse", package: "skip-fuse"),
-                //.product(name: "SkipModel", package: "skip-model")
+                .product(name: "SkipModel", package: "skip-model")
             ],
             plugins: [
-                //.plugin(name: "skipstone", package: "skip")
+                .plugin(name: "skipstone", package: "skip")
             ]
         ),
 

@@ -1,4 +1,5 @@
-// Tiny TCA: Main Store implementation with state management (Android-compatible, no Combine)
+// Tiny TCA: Main Store implementation with state management
+// Cross-platform via SkipModel - @Observable bridges to Compose on Android
 
 import Foundation
 #if canImport(Observation)

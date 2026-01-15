@@ -1,0 +1,5 @@
+# Configuration file for https://skip.tools project
+# tinyTCA runs as native Swift on both iOS and Android via SkipFuse
+
+skip:
+  mode: 'native'
