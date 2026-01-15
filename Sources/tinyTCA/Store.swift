@@ -1,15 +1,20 @@
 // Tiny TCA: Main Store implementation with state management (Android-compatible, no Combine)
 
 import Foundation
+#if canImport(Observation)
+import Observation
+#endif
 
 /// A runtime that powers a feature's logic and handles its effects
 ///
 /// The store manages state, processes actions through the reducer, and runs effects.
 /// It's the central coordinator of your feature.
+@Observable
 @MainActor
-public final class Store<State, Action>: Sendable {
+public final class Store<State, Action> {
   private let reducer: any Reducer<State, Action>
-  private var state: State
+  // Tracked by @Observable for SwiftUI reactivity
+  private(set) var state: State
   private var effectTasks: [UUID: Task<Void, Never>] = [:]
 
   /// Creates a store with an initial state and a reducer
@@ -73,16 +78,14 @@ public final class Store<State, Action>: Sendable {
   }
 
   deinit {
-    for (_, task) in effectTasks {
-      task.cancel()
+    // Tasks are reference types; cancelling them here ensures cleanup
+    // Using MainActor.assumeIsolated since Store is @MainActor and deinit
+    // will be called from the main actor context
+    MainActor.assumeIsolated {
+      for (_, task) in effectTasks {
+        task.cancel()
+      }
     }
   }
 }
 
-// MARK: - Observable State (for SwiftUI)
-
-#if canImport(Observation)
-import Observation
-
-extension Store: Observable {}
-#endif
